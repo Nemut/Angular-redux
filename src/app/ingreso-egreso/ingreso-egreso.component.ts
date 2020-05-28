@@ -1,0 +1,68 @@
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { FormGroup, FormBuilder, Validators } from '@angular/forms';
+import { IngresoEgresoService } from '../services/ingreso-egreso.service';
+import { IngresoEgreso } from '../models/ingreso-egreso.model';
+
+// Ngrx
+import { Store } from '@ngrx/store';
+import { AppState } from 'src/app/app.reducer';
+import * as ui from 'src/app/shared/ui.actions';
+import { Observable, Subscription } from 'rxjs';
+
+@Component({
+  selector: 'app-ingreso-egreso',
+  templateUrl: './ingreso-egreso.component.html',
+  styles: []
+})
+export class IngresoEgresoComponent implements OnInit, OnDestroy {
+
+  ingresoForm: FormGroup;
+  tipo: string = 'ingreso';
+
+  cargando: boolean = false;
+  uiSubscription: Subscription;
+
+  constructor(
+    private fb: FormBuilder,
+    private _ingresoEgresoService: IngresoEgresoService,
+    private store: Store<AppState>
+  ) { }
+
+  ngOnInit(): void {
+
+    this.ingresoForm = this.fb.group({
+      descripcion: ['', Validators.required],
+      monto: ['', Validators.required]
+    });
+
+    this.uiSubscription = this.store.select('ui').subscribe(ui => {
+      this.cargando = ui.isLoading;
+      console.log('cargando subs');
+    });
+    
+  }
+
+  guardar() {
+
+    if ( this.ingresoForm.invalid ) return;
+
+    this.store.dispatch( ui.isLoading() );
+
+    const { descripcion, monto } = this.ingresoForm.value;
+
+    const ingresoEgreso = new IngresoEgreso(descripcion, monto, this.tipo);
+
+    this._ingresoEgresoService.crearIngresoEgreso( ingresoEgreso )
+        .subscribe( resp => {
+          console.log(resp);
+          this.ingresoForm.reset();
+          this.store.dispatch( ui.stopLoading() );
+        });
+
+  }
+
+  ngOnDestroy(): void {    
+    this.uiSubscription.unsubscribe();
+  }
+
+}
